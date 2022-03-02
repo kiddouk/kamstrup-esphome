@@ -1,0 +1,39 @@
+esphome:
+  name: rika
+  platform: ESP8266
+  board: esp01_1m
+  includes:
+    - kamstrup_sensor.h
+
+# Enable logging
+logger:
+  level: TRACE
+  baud_rate: 0 
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  password: ""
+
+wifi:
+  ssid: "LaMaisonDesThings"
+  password: "YouWillNeverGuessMe84$"
+  use_adress: "192.168.1.xxx"
+
+uart:
+  rx_pin: GPIO3
+  tx_pin: GPIO1
+  data_bits: 8
+  parity: NONE
+  stop_bits: 1
+  baud_rate: 115200
+  id: uart_device
+
+custom_component:
+  - lambda: |-
+      auto kamstrup = new KamstrupSensor(id(uart_device));
+      return {kamstrup};
+
+
