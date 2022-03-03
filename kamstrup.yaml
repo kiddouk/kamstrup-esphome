@@ -3,7 +3,7 @@ esphome:
   platform: ESP8266
   board: esp01_1m
   includes:
-    - kamstrup_sensor.h
+    - src/kamstrup_sensor.h
 
 # Enable logging
 logger:
