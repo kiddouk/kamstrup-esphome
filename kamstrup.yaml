@@ -1,13 +1,13 @@
 esphome:
-  name: rika
+  name: kamstrup
   platform: ESP8266
   board: esp01_1m
   includes:
-    - src/kamstrup_sensor.h
+    - src
 
 # Enable logging
 logger:
-  level: TRACE
+  level: DEBUG
   baud_rate: 0 
 
 # Enable Home Assistant API
@@ -20,20 +20,169 @@ ota:
 wifi:
   ssid: "LaMaisonDesThings"
   password: "YouWillNeverGuessMe84$"
-  use_adress: "192.168.1.xxx"
+  use_address: "192.168.1.115"
 
 uart:
   rx_pin: GPIO3
   tx_pin: GPIO1
   data_bits: 8
+  rx_buffer_size: 2048
   parity: NONE
   stop_bits: 1
-  baud_rate: 115200
+  baud_rate: 2400
   id: uart_device
 
-custom_component:
-  - lambda: |-
-      auto kamstrup = new KamstrupSensor(id(uart_device));
-      return {kamstrup};
+sensor:
+  - platform: custom
+    lambda: |-
+      auto kamstrup = new KamstrupComponent(id(uart_device));
+      App.register_component(kamstrup);
+      return {
+         kamstrup->activePowerPlusValid,
+         kamstrup->activePowerMinusValid,
+         kamstrup->activePowerPlusValidL1,
+         kamstrup->activePowerMinusValidL1,
+         kamstrup->activePowerPlusValidL2,
+         kamstrup->activePowerMinusValidL2,
+         kamstrup->activePowerPlusValidL3,
+         kamstrup->activePowerMinusValidL3,
+         kamstrup->reactivePowerPlusValid,
+         kamstrup->reactivePowerMinusValid,
+         kamstrup->powerFactorValidL1,
+         kamstrup->powerFactorValidL2,
+         kamstrup->powerFactorValidL3,
+         kamstrup->powerFactorTotalValid,
+         kamstrup->voltageL1Valid,
+         kamstrup->voltageL2Valid,
+         kamstrup->voltageL3Valid,
+         kamstrup->centiAmpereL1Valid,
+         kamstrup->centiAmpereL2Valid,
+         kamstrup->centiAmpereL3Valid,
+         kamstrup->energyActiveImportWh,
+         kamstrup->activeExportWhValid,
+         kamstrup->activeImportWhValidL1,
+         kamstrup->activeExportWhValidL1,
+         kamstrup->activeImportWhValidL2,
+         kamstrup->activeExportWhValidL2,
+         kamstrup->activeImportWhValidL3,
+         kamstrup->activeExportWhValidL3,
+         kamstrup->reactiveImportWhValid,
+         kamstrup->reactiveExportWhValid};
 
+    sensors:
+      - name: "activePowerPlusValid"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerMinusValid"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerPlusValidL1"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerMinusValidL1"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerPlusValidL2"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerMinusValidL2"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerPlusValidL3"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "activePowerMinusValidL3"
+        unit_of_measurement: "W"
+        accuracy_decimals: 1
+        device_class: power
+      - name: "reactivePowerPlusValid"
+        unit_of_measurement: "var"
+        accuracy_decimals: 1
+        # device_class: reactive_power
+      - name: "reactivePowerMinusValid"
+        unit_of_measurement: "var"
+        accuracy_decimals: 1
+        # device_class: reactive_power
+      - name: "powerFactorValidL1"
+        accuracy_decimals: 1
+        device_class: power_factor
+      - name: "powerFactorValidL2"
+        accuracy_decimals: 1
+        device_class: power_factor
+      - name: "powerFactorValidL3"
+        accuracy_decimals: 1
+        device_class: power_factor
+      - name: "powerFactorTotalValid"
+        accuracy_decimals: 1
+        device_class: power_factor
+      - name: "voltageL1Valid"
+        unit_of_measurement: "V"
+        accuracy_decimals: 1
+        device_class: voltage
+      - name: "voltageL2Valid"
+        unit_of_measurement: "V"
+        accuracy_decimals: 1
+        device_class: voltage
+      - name: "voltageL3Valid"
+        unit_of_measurement: "V"
+        accuracy_decimals: 1
+        device_class: voltage
+      - name: "centiAmpereL1Valid"
+        unit_of_measurement: "A"
+        accuracy_decimals: 1
+        device_class: current
+      - name: "centiAmpereL2Valid"
+        unit_of_measurement: "A"
+        accuracy_decimals: 1
+        device_class: current
+      - name: "centiAmpereL3Valid"
+        unit_of_measurement: "A"
+        accuracy_decimals: 1
+        device_class: current
+      - name: "Energy import"
+        state_class: total_increasing
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeExportWhValid"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeImportWhValidL1"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeExportWhValidL1"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeImportWhValidL2"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeExportWhValidL2"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeImportWhValidL3"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "activeExportWhValidL3"
+        unit_of_measurement: "Wh"
+        accuracy_decimals: 1
+        device_class: energy
+      - name: "reactiveImportWhValid"
+        unit_of_measurement: "varh"
+        accuracy_decimals: 1
+      - name: "reactiveExportWhValid"
+        unit_of_measurement: "varh"
+        accuracy_decimals: 1
 

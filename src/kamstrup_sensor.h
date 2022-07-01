@@ -1,8 +1,7 @@
 #include "esphome.h"
-
-#include "gcm.h"
-#include "mbusparser.h"
-#include "secrets.h"
+#include "src/mbusparser.h"
+#include "src/gcm.h"
+#include "src/secrets.h"
 
 const size_t headersize = 11;
 const size_t footersize = 3;
@@ -14,146 +13,149 @@ VectorView decryptedFrame(decryptedFrameBuffer, 0);
 MbusStreamParser streamParser(receiveBuffer, sizeof(receiveBuffer));
 mbedtls_gcm_context m_ctx;
 
+class KamstrupComponent : public Component, public UARTDevice {
+    public:
+         Sensor *activePowerPlusValid = new Sensor();
+         Sensor *activePowerMinusValid = new Sensor();
+         Sensor *activePowerPlusValidL1 = new Sensor();
+         Sensor *activePowerMinusValidL1 = new Sensor();
+         Sensor *activePowerPlusValidL2 = new Sensor();
+         Sensor *activePowerMinusValidL2 = new Sensor();
+         Sensor *activePowerPlusValidL3 = new Sensor();
+         Sensor *activePowerMinusValidL3 = new Sensor();
+         Sensor *reactivePowerPlusValid = new Sensor();
+         Sensor *reactivePowerMinusValid = new Sensor();
 
-class KamstrupComponent : public PollingComponent, public UARTDevice {
-	public:
-		KamstrupComponent(UARTDevice *parent) : UARTDevice(parent) {}
+         Sensor *powerFactorValidL1 = new Sensor();
+         Sensor *powerFactorValidL2 = new Sensor();
+         Sensor *powerFactorValidL3 = new Sensor();
+         Sensor *powerFactorTotalValid = new Sensor();
+
+         Sensor *voltageL1Valid = new Sensor();
+         Sensor *voltageL2Valid = new Sensor();
+         Sensor *voltageL3Valid = new Sensor();
+
+         Sensor *centiAmpereL1Valid = new Sensor();
+         Sensor *centiAmpereL2Valid = new Sensor();
+         Sensor *centiAmpereL3Valid = new Sensor();
+
+         Sensor *energyActiveImportWh = new Sensor();
+         Sensor *activeExportWhValid = new Sensor();
+         Sensor *activeImportWhValidL1 = new Sensor();
+         Sensor *activeExportWhValidL1 = new Sensor();
+         Sensor *activeImportWhValidL2 = new Sensor();
+         Sensor *activeExportWhValidL2 = new Sensor();
+         Sensor *activeImportWhValidL3 = new Sensor();
+         Sensor *activeExportWhValidL3 = new Sensor();
+
+         Sensor *reactiveImportWhValid = new Sensor();
+         Sensor *reactiveExportWhValid = new Sensor();
+
+
+		KamstrupComponent(UARTComponent *parent) : Component(),  UARTDevice(parent) { }
 
 		void setup() override {
-			hexStr2bArr(encryption_key, conf_key, sizeof(encryption_key));
-			hexStr2bArr(authentication_key, conf_authkey, sizeof(authentication_key));
-			Serial.println("Setup completed");
-		}
+          ESP_LOGI("kamstrup", "Initializing device and encryption keys");
+          hexStr2bArr(encryption_key, conf_key, sizeof(encryption_key));
+          hexStr2bArr(authentication_key, conf_authkey, sizeof(authentication_key));
+          ESP_LOGI("kamstrup", "Initialization completed");
+       }
 
-		void loop() override {
-			if (Serial.available <= 0) { return }
-			while (Serial.available() > 0) {
-				if (streamParser.pushData(Serial.read()) == false) { return }
-				VectorView frame = streamParser.getFrame();
-				if (streamParser.getContentType() != MbusStreamParser::COMPLETE_FRAME) { return }
-				DEBUG_PRINTLN("Frame complete");
-				if (!decrypt(frame)) { DEBUG_PRINTLN("Decryption failed"); return; }
-				MeterData md = parseMbusFrame(decryptedFrame);
-				sendData(md);
-			}
-		}
+       void loop() override {
+           if (Serial.available() <= 0) { return; }
+           while (Serial.available() > 0) {
+             if (streamParser.pushData(Serial.read()) == false) { return; }
+             VectorView frame = streamParser.getFrame();
+             if (streamParser.getContentType() != MbusStreamParser::COMPLETE_FRAME) { return; }
+               ESP_LOGI("kamstrup", "Frame complete");
+               if (!decrypt(frame)) { ESP_LOGW("kamstrup", "Decryption failed"); return; }
+               MeterData md = parseMbusFrame(decryptedFrame);
+               sendData(md);
+           }
+       }
 
-		void update() override {
+       void sendData(MeterData md) {
+         if (md.activePowerPlusValid) { activePowerPlusValid->publish_state(md.activePowerPlusValid); }
+         if (md.activePowerMinusValid) { activePowerMinusValid->publish_state(md.activePowerMinusValid); }
+         if (md.activePowerPlusValidL1) { activePowerPlusValidL1->publish_state(md.activePowerPlusValidL1); }
+         if (md.activePowerMinusValidL1) { activePowerMinusValidL1->publish_state(md.activePowerMinusValidL1); }
+         if (md.activePowerPlusValidL2) { activePowerPlusValidL2->publish_state(md.activePowerPlusValidL2); }
+         if (md.activePowerMinusValidL2) { activePowerMinusValidL2->publish_state(md.activePowerMinusValidL2); }
+         if (md.activePowerPlusValidL3) { activePowerPlusValidL3->publish_state(md.activePowerPlusValidL3); }
+         if (md.activePowerMinusValidL3) { activePowerMinusValidL3->publish_state(md.activePowerMinusValidL3); }
+         if (md.reactivePowerPlusValid) { reactivePowerPlusValid->publish_state(md.reactivePowerPlusValid); }
+         if (md.reactivePowerMinusValid) { reactivePowerMinusValid->publish_state(md.reactivePowerMinusValid); }
 
-		}
+         if (md.powerFactorValidL1) { powerFactorValidL1->publish_state(md.powerFactorValidL1); }
+         if (md.powerFactorValidL2) { powerFactorValidL2->publish_state(md.powerFactorValidL2); }
+         if (md.powerFactorValidL3) { powerFactorValidL3->publish_state(md.powerFactorValidL3); }
+         if (md.powerFactorTotalValid) { powerFactorTotalValid->publish_state(md.powerFactorTotalValid); }
 
-		void sendData(MeterData md) {
-			if (md.activePowerPlusValid)
-				sendmsg(String(mqtt_topic) + "/activePowerPlus", String(md.activePowerPlus));
-			if (md.activePowerMinusValid)
-				sendmsg(String(mqtt_topic) + "/activePowerMinus", String(md.activePowerMinus));
-			if (md.activePowerPlusValidL1)
-				sendmsg(String(mqtt_topic) + "/activePowerPlusL1", String(md.activePowerPlusL1));
-			if (md.activePowerMinusValidL1)
-				sendmsg(String(mqtt_topic) + "/activePowerMinusL1", String(md.activePowerMinusL1));
-			if (md.activePowerPlusValidL2)
-				sendmsg(String(mqtt_topic) + "/activePowerPlusL2", String(md.activePowerPlusL2));
-			if (md.activePowerMinusValidL2)
-				sendmsg(String(mqtt_topic) + "/activePowerMinusL2", String(md.activePowerMinusL2));
-			if (md.activePowerPlusValidL3)
-				sendmsg(String(mqtt_topic) + "/activePowerPlusL3", String(md.activePowerPlusL3));
-			if (md.activePowerMinusValidL3)
-				sendmsg(String(mqtt_topic) + "/activePowerMinusL3", String(md.activePowerMinusL3));
-			if (md.reactivePowerPlusValid)
-				sendmsg(String(mqtt_topic) + "/reactivePowerPlus", String(md.reactivePowerPlus));
-			if (md.reactivePowerMinusValid)
-				sendmsg(String(mqtt_topic) + "/reactivePowerMinus", String(md.reactivePowerMinus));
+         if (md.voltageL1Valid) { voltageL1Valid->publish_state(md.voltageL1Valid); }
+         if (md.voltageL2Valid) { voltageL2Valid->publish_state(md.voltageL2Valid); }
+         if (md.voltageL3Valid) { voltageL3Valid->publish_state(md.voltageL3Valid); }
 
-			if (md.powerFactorValidL1)
-				sendmsg(String(mqtt_topic) + "/powerFactorL1", String(md.powerFactorL1));
-			if (md.powerFactorValidL2)
-				sendmsg(String(mqtt_topic) + "/powerFactorL2", String(md.powerFactorL2));
-			if (md.powerFactorValidL3)
-				sendmsg(String(mqtt_topic) + "/powerFactorL3", String(md.powerFactorL3));
-			if (md.powerFactorTotalValid)
-				sendmsg(String(mqtt_topic) + "/powerFactorTotal", String(md.powerFactorTotal));
+         if (md.centiAmpereL1Valid) { centiAmpereL1Valid->publish_state(md.centiAmpereL1Valid); }
+         if (md.centiAmpereL2Valid) { centiAmpereL2Valid->publish_state(md.centiAmpereL2Valid); }
+         if (md.centiAmpereL3Valid) { centiAmpereL3Valid->publish_state(md.centiAmpereL3Valid); }
 
-			if (md.voltageL1Valid)
-				sendmsg(String(mqtt_topic) + "/voltageL1", String(md.voltageL1));
-			if (md.voltageL2Valid)
-				sendmsg(String(mqtt_topic) + "/voltageL2", String(md.voltageL2));
-			if (md.voltageL3Valid)
-				sendmsg(String(mqtt_topic) + "/voltageL3", String(md.voltageL3));
+         if (md.activeImportWhValid) { energyActiveImportWh->publish_state(md.activeImportWh); }
+         if (md.activeExportWhValid) { activeExportWhValid->publish_state(md.activeExportWhValid); }
+         if (md.activeImportWhValidL1) { activeImportWhValidL1->publish_state(md.activeImportWhValidL1); }
+         if (md.activeExportWhValidL1) { activeExportWhValidL1->publish_state(md.activeExportWhValidL1); }
+         if (md.activeImportWhValidL2) { activeImportWhValidL2->publish_state(md.activeImportWhValidL2); }
+         if (md.activeExportWhValidL2) { activeExportWhValidL2->publish_state(md.activeExportWhValidL2); }
+         if (md.activeImportWhValidL3) { activeImportWhValidL3->publish_state(md.activeImportWhValidL3); }
+         if (md.activeExportWhValidL3) { activeExportWhValidL3->publish_state(md.activeExportWhValidL3); }
 
-			if (md.centiAmpereL1Valid)
-				sendmsg(String(mqtt_topic) + "/currentL1", String(md.centiAmpereL1 / 100.));
-			if (md.centiAmpereL2Valid)
-				sendmsg(String(mqtt_topic) + "/currentL2", String(md.centiAmpereL2 / 100.));
-			if (md.centiAmpereL3Valid)
-				sendmsg(String(mqtt_topic) + "/currentL3", String(md.centiAmpereL3 / 100.));
+         if (md.reactiveImportWhValid) { reactiveImportWhValid->publish_state(md.reactiveImportWhValid); }
+         if (md.reactiveExportWhValid) { reactiveExportWhValid->publish_state(md.reactiveExportWhValid); }
+       }
 
-			if (md.activeImportWhValid)
-				sendmsg(String(mqtt_topic) + "/energyActiveImportKWh", String(md.activeImportWh / 1000.));
-			if (md.activeExportWhValid)
-				sendmsg(String(mqtt_topic) + "/energyActiveExportKWh", String(md.activeExportWh / 1000.));
-			if (md.activeImportWhValidL1)
-				sendmsg(String(mqtt_topic) + "/energyActiveImportKWhL1", String(md.activeImportWhL1 / 1000.));
-			if (md.activeExportWhValidL1)
-				sendmsg(String(mqtt_topic) + "/energyActiveExportKWhL1", String(md.activeExportWhL1 / 1000.));
-			if (md.activeImportWhValidL2)
-				sendmsg(String(mqtt_topic) + "/energyActiveImportKWhL2", String(md.activeImportWhL2 / 1000.));
-			if (md.activeExportWhValidL2)
-				sendmsg(String(mqtt_topic) + "/energyActiveExportKWhL2", String(md.activeExportWhL2 / 1000.));
-			if (md.activeImportWhValidL3)
-				sendmsg(String(mqtt_topic) + "/energyActiveImportKWhL3", String(md.activeImportWhL3 / 1000.));
-			if (md.activeExportWhValidL3)
-				sendmsg(String(mqtt_topic) + "/energyActiveExportKWhL3", String(md.activeExportWhL3 / 1000.));
+       void printHex(const VectorView& frame) {
+           for (int i = 0; i < frame.size(); i++) {
+               Serial.printf("%02X", frame[i]);
+           }
+       }
 
-			if (md.reactiveImportWhValid)
-				sendmsg(String(mqtt_topic) + "/energyReactiveImportKWh", String(md.reactiveImportWh / 1000.));
-			if (md.reactiveExportWhValid)
-				sendmsg(String(mqtt_topic) + "/energyReactiveExportKWh", String(md.reactiveExportWh / 1000.));
-		}
+       bool decrypt(const VectorView& frame) {
 
-		void printHex(const VectorView& frame) {
-			for (int i = 0; i < frame.size(); i++) {
-				Serial.printf("%02X", frame[i]);
-			}
-		}
+           if (frame.size() < headersize + footersize + 12 + 18) {
+             ESP_LOGW("kamstrup", "Invalid frame size.");
+           }
 
-		bool decrypt(const VectorView& frame) {
+           memcpy(decryptedFrameBuffer, &frame.front(), frame.size());
 
-			if (frame.size() < headersize + footersize + 12 + 18) {
-				Serial.println("Invalid frame size.");
-			}
+           uint8_t system_title[8];
+           memcpy(system_title, decryptedFrameBuffer + headersize + 2, 8);
 
-			memcpy(decryptedFrameBuffer, &frame.front(), frame.size());
+           uint8_t initialization_vector[12];
+           memcpy(initialization_vector, system_title, 8);
+           memcpy(initialization_vector + 8, decryptedFrameBuffer + headersize + 14, 4);
 
-			uint8_t system_title[8];
-			memcpy(system_title, decryptedFrameBuffer + headersize + 2, 8);
+           uint8_t additional_authenticated_data[17];
+           memcpy(additional_authenticated_data, decryptedFrameBuffer + headersize + 13, 1);
+           memcpy(additional_authenticated_data + 1, authentication_key, 16);
 
-			uint8_t initialization_vector[12];
-			memcpy(initialization_vector, system_title, 8);
-			memcpy(initialization_vector + 8, decryptedFrameBuffer + headersize + 14, 4);
+           uint8_t authentication_tag[12];
+           memcpy(authentication_tag, decryptedFrameBuffer + headersize + frame.size() - headersize - footersize - 12, 12);
 
-			uint8_t additional_authenticated_data[17];
-			memcpy(additional_authenticated_data, decryptedFrameBuffer + headersize + 13, 1);
-			memcpy(additional_authenticated_data + 1, authentication_key, 16);
+           uint8_t cipher_text[frame.size() - headersize - footersize - 18 - 12];
+           memcpy(cipher_text, decryptedFrameBuffer + headersize + 18, frame.size() - headersize - footersize - 12 - 18);
 
-			uint8_t authentication_tag[12];
-			memcpy(authentication_tag, decryptedFrameBuffer + headersize + frame.size() - headersize - footersize - 12, 12);
+           uint8_t plaintext[sizeof(cipher_text)];
 
-			uint8_t cipher_text[frame.size() - headersize - footersize - 18 - 12];
-			memcpy(cipher_text, decryptedFrameBuffer + headersize + 18, frame.size() - headersize - footersize - 12 - 18);
-
-			uint8_t plaintext[sizeof(cipher_text)];
-
-			mbedtls_gcm_init(&m_ctx);
-			int success = mbedtls_gcm_setkey(&m_ctx, MBEDTLS_CIPHER_ID_AES, encryption_key, sizeof(encryption_key) * 8);
-			if (0 != success) {
-				Serial.println("Setkey failed: " + String(success));
-				return false;
-			}
-			success = mbedtls_gcm_auth_decrypt(&m_ctx, sizeof(cipher_text), initialization_vector, sizeof(initialization_vector),
-					additional_authenticated_data, sizeof(additional_authenticated_data), authentication_tag, sizeof(authentication_tag),
-					cipher_text, plaintext);
-			if (0 != success) {
-				Serial.println("authdecrypt failed: " + String(success));
+           mbedtls_gcm_init(&m_ctx);
+           int success = mbedtls_gcm_setkey(&m_ctx, MBEDTLS_CIPHER_ID_AES, encryption_key, sizeof(encryption_key) * 8);
+           if (0 != success) {
+             ESP_LOGE("kamstrup", "Setkey failed: ");
+             return false;
+           }
+           success = mbedtls_gcm_auth_decrypt(&m_ctx, sizeof(cipher_text), initialization_vector, sizeof(initialization_vector),
+                   additional_authenticated_data, sizeof(additional_authenticated_data), authentication_tag, sizeof(authentication_tag),
+                   cipher_text, plaintext);
+           if (0 != success) {
+             ESP_LOGE("kamstrup", "authdecrypt failed: ");
 				return false;
 			}
 			mbedtls_gcm_free(&m_ctx);
@@ -162,6 +164,7 @@ class KamstrupComponent : public PollingComponent, public UARTDevice {
 			memcpy(decryptedFrameBuffer + headersize + 18, plaintext, sizeof(plaintext));
 			decryptedFrame = VectorView(decryptedFrameBuffer, frame.size());
 
+            ESP_LOGI("kamstrup", "payload decrypted successfully");
 			return true;
 		}
 
@@ -177,4 +180,6 @@ class KamstrupComponent : public PollingComponent, public UARTDevice {
 				source += 2;
 			}
 		}
-}
+
+  float get_setup_priority() const override { return esphome::setup_priority::LATE; }
+};
